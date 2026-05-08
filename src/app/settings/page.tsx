@@ -3,6 +3,7 @@
 import { ChevronLeft, Moon, Sun } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -35,6 +36,14 @@ const LANGUAGE_UI: Record<Lang, string> = {
 };
 
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto min-h-dvh w-full max-w-md px-4 py-5" />}>
+      <SettingsPageContent />
+    </Suspense>
+  );
+}
+
+function SettingsPageContent() {
   const { lang, setLang, t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
