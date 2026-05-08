@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+html {
+  width: 100%;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  --background: #0b0e14;
+  --foreground: #f2f6ff;
+  --accent: #d7ff5b;
+  --muted: #98a2b3;
+}
+
+html[data-theme="light"] {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --accent: #2563eb;
+  --muted: #475467;
+}
+
+html[data-theme="light"],
+html[data-theme="light"] body {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+html[data-theme="light"] .match-play-root {
+  background: #ffffff !important;
+}
+
+/* Light mode readability tuning */
+html[data-theme="light"] .text-\[\#dbe4f2\],
+html[data-theme="light"] .text-\[\#f2f6ff\],
+html[data-theme="light"] .text-\[\#c4c9d4\],
+html[data-theme="light"] .text-\[\#dde1e9\] {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .text-\[\#98a2b3\] {
+  color: #475467 !important;
+}
+
+/* Replace yellow highlight with stronger blue in light mode */
+html[data-theme="light"] .text-\[\#D7FF5B\] {
+  color: #1d4ed8 !important;
+}
+
+html[data-theme="light"] .border-\[\#D7FF5B\],
+html[data-theme="light"] .border-\[\#D7FF5B\]\/80 {
+  border-color: #1d4ed8 !important;
+}
+
+html[data-theme="light"] .bg-\[\#D7FF5B\]\/20 {
+  background-color: rgba(29, 78, 216, 0.16) !important;
+}
+
+html[data-theme="light"] .bg-\[\#D7FF5B\]\/22 {
+  background-color: rgba(29, 78, 216, 0.18) !important;
+}
+
+/* Score area divider / frame visibility in light mode */
+html[data-theme="light"] .border-\[\#f2f6ff\]\/12 {
+  border-color: rgba(15, 23, 42, 0.2) !important;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-score: var(--font-poppins);
+}
+
+body {
+  width: 100%;
+  min-width: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  color-scheme: light dark;
+}
+
+button,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.score-font {
+  font-family: var(--font-poppins), var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
