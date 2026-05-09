@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  chromeEngagementHintMs,
+  getPwaEngagementMs,
+  isInstalledExperience,
+  isStandaloneDisplay,
+  setPersistedInstalledFlag,
+} from "@/lib/pwa-install";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -15,21 +22,20 @@ function isIosDevice() {
   return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
 }
 
-function isStandalone() {
-  if (typeof window === "undefined") return false;
-  const nav = window.navigator as Navigator & { standalone?: boolean };
-  return window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
-}
-
 export default function InstallPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [ios, setIos] = useState(false);
   const [message, setMessage] = useState("");
+  const [engagementMs, setEngagementMs] = useState(0);
 
-  const ios = useMemo(() => isIosDevice(), []);
+  const refreshInstalled = useCallback(() => {
+    setInstalled(isInstalledExperience());
+  }, []);
 
   useEffect(() => {
-    setInstalled(isStandalone());
+    setIos(isIosDevice());
+    refreshInstalled();
 
     const onBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -37,19 +43,36 @@ export default function InstallPage() {
     };
 
     const onAppInstalled = () => {
+      setPersistedInstalledFlag();
       setInstalled(true);
       setDeferredPrompt(null);
     };
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onAppInstalled);
+
+    const modes = ["standalone", "fullscreen", "minimal-ui", "window-controls-overlay"] as const;
+    const mqs = modes.map((m) => window.matchMedia(`(display-mode: ${m})`));
+    const onDisplayMode = () => refreshInstalled();
+    mqs.forEach((mq) => mq.addEventListener("change", onDisplayMode));
+
+    const engagementHint = chromeEngagementHintMs();
+    const tick = () => setEngagementMs(getPwaEngagementMs());
+    tick();
+    const engagementId = window.setInterval(tick, 500);
+
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onAppInstalled);
+      mqs.forEach((mq) => mq.removeEventListener("change", onDisplayMode));
+      window.clearInterval(engagementId);
     };
-  }, []);
+  }, [refreshInstalled]);
 
   const installSupported = Boolean(deferredPrompt);
+  const engagementHint = chromeEngagementHintMs();
+  const engagementOk = engagementMs >= engagementHint;
+  const remainingEngagementSec = Math.max(0, Math.ceil((engagementHint - engagementMs) / 1000));
 
   const handleInstall = async () => {
     if (installed) return;
@@ -60,8 +83,14 @@ export default function InstallPage() {
       return;
     }
     if (!deferredPrompt) {
+      if (!engagementOk) {
+        setMessage(
+          `Chrome の仕様で、しばらくこのサイトを表示してからでないとインストール用のダイアログが出ないことがあります（目安: あと約 ${remainingEngagementSec} 秒。この画面のままお待ちください）。`,
+        );
+        return;
+      }
       setMessage(
-        "この画面からはインストールダイアログを出せません。Chrome / Edge でこのページを開き直すか、メニュー（⋮）の「アプリをインストール」「ホーム画面に追加」を試してください。LINE などアプリ内ブラウザの場合は「ブラウザで開いて」からお試しください。",
+        "この画面からはインストールダイアログを出せません。Chrome / Edge のメニュー（⋮）から「アプリをインストール」または「ホーム画面に追加」を選んでください。LINE などのアプリ内ブラウザの場合は「ブラウザで開く」してからお試しください。",
       );
       return;
     }
@@ -73,6 +102,8 @@ export default function InstallPage() {
     setDeferredPrompt(null);
   };
 
+  const showChromeWaitHint = !ios && !installSupported && !installed && !engagementOk;
+
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 py-8">
       <div className="flex items-center gap-3">
@@ -80,6 +111,19 @@ export default function InstallPage() {
         <h1 className="text-xl font-semibold tracking-tight">Sports Score</h1>
       </div>
       <p className="mt-3 text-sm text-foreground/75">android版</p>
+
+      {showChromeWaitHint ? (
+        <p className="mt-4 rounded-xl border border-foreground/20 bg-foreground/5 px-3 py-2 text-sm text-foreground/85">
+          Chrome では、このサイトを<strong>合計約30秒</strong>表示したあとにインストール用の準備が整うことがあります（他のページを見ていてもカウントされます）。あと約{" "}
+          <span className="font-mono tabular-nums">{remainingEngagementSec}</span> 秒…
+        </p>
+      ) : null}
+
+      {installed && !isStandaloneDisplay() ? (
+        <p className="mt-3 text-xs text-foreground/60">
+          以前にインストール済みとして記録されています。ホーム画面のアイコンから開くとアプリ表示になります。
+        </p>
+      ) : null}
 
       <button
         type="button"
@@ -101,9 +145,9 @@ export default function InstallPage() {
 
       {message ? <p className="mt-4 text-sm text-[#D7FF5B]">{message}</p> : null}
 
-      {!ios && !installSupported && !installed ? (
+      {!ios && !installSupported && !installed && engagementOk ? (
         <p className="mt-3 text-xs text-foreground/55">
-          ボタンを押しても反応しない場合はページを再読み込みするか、Chrome / Edge のメニューからインストールしてください。初回は Service Worker の登録後にプロンプトが有効になることがあります。
+          準備が整っているのにボタンで出ない場合は、ページを再読み込みするか Chrome / Edge のメニューからインストールしてください。
         </p>
       ) : null}
     </main>
