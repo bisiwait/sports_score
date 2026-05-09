@@ -38,7 +38,6 @@ export default function InstallPage() {
 
     const onAppInstalled = () => {
       setInstalled(true);
-      setMessage("インストールが完了しました。ホーム画面から起動できます。");
       setDeferredPrompt(null);
     };
 
@@ -84,7 +83,7 @@ export default function InstallPage() {
         className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-foreground px-4 py-3 text-base font-semibold text-background disabled:opacity-45"
         disabled={installed}
       >
-        インストール
+        {installed ? "インストール済み" : "インストール"}
       </button>
 
       <section className="mt-6 rounded-xl border border-foreground/15 p-4">
