@@ -67,6 +67,8 @@ type ScoreRow = {
   score_a: number | null;
   score_b: number | null;
   serve_team: string | null;
+  /** false: 左=A・右=B と同じ見え方／true: 審判のコートチェンジ済みを観客も反映する */
+  court_display_flipped?: boolean | null;
 };
 
 function normalizeServeTeam(v: string | null): "A" | "B" {
@@ -97,9 +99,8 @@ function physicalServeLeftToServeTeam(serveLeft: boolean, aOnLeft: boolean): "A"
   return serveLeft ? "B" : "A";
 }
 
-/** 物理左列が Team A を表示しているか（審判のみ反転可。閲覧は常に false 扱い） */
-function teamAOnPhysicalLeft(displayFlipped: boolean, isReadonly: boolean): boolean {
-  if (isReadonly) return true;
+/** 物理左列が Team A を表示しているか（DB と同期された displayFlipped で一意に決める） */
+function teamAOnPhysicalLeft(displayFlipped: boolean): boolean {
   return !displayFlipped;
 }
 
@@ -156,7 +157,7 @@ export function MatchClient() {
   const leftPointerConsumed = useRef(false);
   const rightPointerConsumed = useRef(false);
 
-  const aOnLeft = teamAOnPhysicalLeft(displayFlipped, isReadonly);
+  const aOnLeft = teamAOnPhysicalLeft(displayFlipped);
 
   const leftScore = aOnLeft ? current.score_a : current.score_b;
   const rightScore = aOnLeft ? current.score_b : current.score_a;
@@ -202,6 +203,7 @@ export function MatchClient() {
             score_a: 0,
             score_b: 0,
             serve_team: "A",
+            court_display_flipped: false,
           })
           .select("id")
           .single();
@@ -229,6 +231,7 @@ export function MatchClient() {
         setHistory([rowToScoreHistory(row)]);
         setTeam_a_name(row.team_a_name || DEFAULT_APP_SETTINGS.teamLeftName);
         setTeam_b_name(row.team_b_name || DEFAULT_APP_SETTINGS.teamRightName);
+        setDisplayFlipped(Boolean(row.court_display_flipped));
       }
       setActiveMatchId(matchId);
       setIsMatchReady(true);
@@ -290,6 +293,27 @@ export function MatchClient() {
     [activeMatchId, effectiveConfig.serveEnabled]
   );
 
+  const pushCourtDisplayFlippedOnly = useCallback(async (court_display_flipped: boolean) => {
+    const client = supabase;
+    if (!hasSupabaseEnv || !client || !activeMatchId) return;
+
+    isPushingRef.current = true;
+    try {
+      const { error } = await client
+        .from("score_matches")
+        .update({ court_display_flipped })
+        .eq("id", activeMatchId);
+
+      if (error) {
+        console.error("[court] court_display_flipped update FAILED:", error.message);
+      } else {
+        console.log("[court] court_display_flipped update OK:", { court_display_flipped });
+      }
+    } finally {
+      isPushingRef.current = false;
+    }
+  }, [activeMatchId]);
+
   const pushServeTeamOnly = useCallback(
     async (serve_team: "A" | "B") => {
       const client = supabase;
@@ -315,7 +339,10 @@ export function MatchClient() {
   );
 
   const pushFullRow = useCallback(
-    async (row: ScoreHistoryRow & { team_a_name: string; team_b_name: string }) => {
+    async (
+      row: ScoreHistoryRow & { team_a_name: string; team_b_name: string },
+      opts?: { courtDisplayFlipped?: boolean },
+    ) => {
       const client = supabase;
       if (!hasSupabaseEnv || !client || !activeMatchId) return;
 
@@ -325,17 +352,22 @@ export function MatchClient() {
         score_a: row.score_a,
         score_b: row.score_b,
       };
-      const payload = effectiveConfig.serveEnabled
-        ? { ...base, serve_team: row.serve_team }
-        : base;
+      const payload =
+        effectiveConfig.serveEnabled
+          ? { ...base, serve_team: row.serve_team }
+          : base;
+      const withCourt =
+        opts && "courtDisplayFlipped" in opts
+          ? { ...payload, court_display_flipped: opts.courtDisplayFlipped }
+          : payload;
 
       isPushingRef.current = true;
       try {
-        const { error } = await client.from("score_matches").update(payload).eq("id", activeMatchId);
+        const { error } = await client.from("score_matches").update(withCourt).eq("id", activeMatchId);
         if (error) {
           console.error("[sync] full row update FAILED:", error.message);
         } else {
-          console.log("[sync] full row update OK:", payload);
+          console.log("[sync] full row update OK:", withCourt);
         }
       } finally {
         isPushingRef.current = false;
@@ -363,6 +395,7 @@ export function MatchClient() {
           const row = payload.new as ScoreRow;
           setTeam_a_name(row.team_a_name || DEFAULT_APP_SETTINGS.teamLeftName);
           setTeam_b_name(row.team_b_name || DEFAULT_APP_SETTINGS.teamRightName);
+          setDisplayFlipped(Boolean(row.court_display_flipped));
           const incoming = rowToScoreHistory(row);
           const now = historyRef.current[historyRef.current.length - 1]!;
           if (!isSameScoreHistory(incoming, now)) {
@@ -500,11 +533,14 @@ export function MatchClient() {
     setTeam_b_name(names.teamRightName);
     setDisplayFlipped(false);
     setHistory([next]);
-    void pushFullRow({
-      ...next,
-      team_a_name: names.teamLeftName,
-      team_b_name: names.teamRightName,
-    });
+    void pushFullRow(
+      {
+        ...next,
+        team_a_name: names.teamLeftName,
+        team_b_name: names.teamRightName,
+      },
+      { courtDisplayFlipped: false },
+    );
   }, [isReadonly, pushFullRow]);
 
   /** コートチェンジ: 表示の左右だけ反転。DB・serve_team には触れない。 */
@@ -512,8 +548,12 @@ export function MatchClient() {
     if (isReadonly || winnerTeam) return;
     resumeWebAudioFromUserGesture();
     if (loadAppSettings().vibrationEnabled) vibrateUi();
-    setDisplayFlipped((f) => !f);
-  }, [isReadonly, winnerTeam]);
+    setDisplayFlipped((f) => {
+      const next = !f;
+      void pushCourtDisplayFlippedOnly(next);
+      return next;
+    });
+  }, [isReadonly, pushCourtDisplayFlippedOnly, winnerTeam]);
 
   /** サーブ権: A↔B のみ。点数・チーム名はそのまま。 */
   const toggleServeTeam = useCallback(() => {
@@ -633,10 +673,6 @@ export function MatchClient() {
   }
 
   if (isReadonly) {
-    const roLeftScore = current.score_a;
-    const roRightScore = current.score_b;
-    const roServeLeft = effectiveConfig.serveEnabled && current.serve_team === "A";
-
     return (
       <div className="match-play-root flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden overscroll-none bg-background">
         {!effectiveConfig.serveEnabled ? (
@@ -653,42 +689,46 @@ export function MatchClient() {
               </p>
             </div>
             <div className="flex shrink-0 items-center justify-center px-1" aria-live="polite">
-              <ServeIndicator side={roServeLeft ? "left" : "right"} size="toolbar" />
+              <ServeIndicator side={serveIsPhysicalLeft ? "left" : "right"} size="toolbar" />
             </div>
             <div className="min-h-10 min-w-0 flex-1 basis-0" aria-hidden />
           </div>
         )}
 
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-row items-stretch px-2">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center border-r border-[#f2f6ff]/12 px-2">
-            {effectiveConfig.serveEnabled && roServeLeft ? (
-              <span className="pointer-events-none mb-2 rounded-full border border-[#D7FF5B]/80 bg-[#D7FF5B]/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.2em] text-[#D7FF5B]">
-                SERVICE
-              </span>
-            ) : effectiveConfig.serveEnabled ? (
-              <span className="mb-2 min-h-[1.75rem] shrink-0" aria-hidden />
-            ) : null}
-            <span className="pointer-events-none mb-2 max-w-full truncate text-center text-[clamp(1.15rem,4.8vw,1.75rem)] font-bold leading-tight text-[#dbe4f2]">
-              {team_a_name}
-            </span>
-            <span className="score-font pointer-events-none tabular-nums text-[clamp(2.75rem,min(28vw,min(45dvh,18rem)),5.5rem)] font-bold leading-none tracking-tight text-[#f2f6ff]">
-              {roLeftScore}
-            </span>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col border-r border-[#f2f6ff]/12">
+            <div className="flex shrink-0 flex-col items-center pt-[max(0.25rem,min(3dvh,1rem))]">
+              {effectiveConfig.serveEnabled && serveIsPhysicalLeft ? (
+                <span className="pointer-events-none mb-2 rounded-full border border-[#D7FF5B]/80 bg-[#D7FF5B]/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.2em] text-[#D7FF5B]">
+                  SERVICE
+                </span>
+              ) : effectiveConfig.serveEnabled ? (
+                <span className="mb-2 min-h-[1.75rem] shrink-0" aria-hidden />
+              ) : null}
+            </div>
+            <PlayColumnBody
+              teamName={leftTeamLabel}
+              score={leftScore}
+              winSticker={winner === "left"}
+              t={t}
+            />
           </div>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center px-2">
-            {effectiveConfig.serveEnabled && !roServeLeft ? (
-              <span className="pointer-events-none mb-2 rounded-full border border-[#D7FF5B]/80 bg-[#D7FF5B]/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.2em] text-[#D7FF5B]">
-                SERVICE
-              </span>
-            ) : effectiveConfig.serveEnabled ? (
-              <span className="mb-2 min-h-[1.75rem] shrink-0" aria-hidden />
-            ) : null}
-            <span className="pointer-events-none mb-2 max-w-full truncate text-center text-[clamp(1.15rem,4.8vw,1.75rem)] font-bold leading-tight text-[#dbe4f2]">
-              {team_b_name}
-            </span>
-            <span className="score-font pointer-events-none tabular-nums text-[clamp(2.75rem,min(28vw,min(45dvh,18rem)),5.5rem)] font-bold leading-none tracking-tight text-[#f2f6ff]">
-              {roRightScore}
-            </span>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="flex shrink-0 flex-col items-center pt-[max(0.25rem,min(3dvh,1rem))]">
+              {effectiveConfig.serveEnabled && !serveIsPhysicalLeft ? (
+                <span className="pointer-events-none mb-2 rounded-full border border-[#D7FF5B]/80 bg-[#D7FF5B]/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.2em] text-[#D7FF5B]">
+                  SERVICE
+                </span>
+              ) : effectiveConfig.serveEnabled ? (
+                <span className="mb-2 min-h-[1.75rem] shrink-0" aria-hidden />
+              ) : null}
+            </div>
+            <PlayColumnBody
+              teamName={rightTeamLabel}
+              score={rightScore}
+              winSticker={winner === "right"}
+              t={t}
+            />
           </div>
         </div>
       </div>

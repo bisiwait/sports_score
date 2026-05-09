@@ -43,7 +43,7 @@
   "match.courtChangeBadge": "コート\nチェンジ",
   "match.shareQr": "観客用QR",
   "match.qrTitle": "観客用URLの共有",
-  "match.qrHint": "スマホで読み取ると、このときのスコア画面が閲覧専用で開きます（リアルタイム同期はありません）。",
+  "match.qrHint": "スマホで読み取ると、この試合のスコアがリアルタイムで見られます（閲覧のみ・操作はできません）。",
   "match.qrClose": "閉じる",
   "match.qrPanelCaption": "観客用URL（リアルタイム反映）",
   "match.copySpectatorUrl": "URLをコピー",

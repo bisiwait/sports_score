@@ -195,6 +195,7 @@ function SettingsPageContent() {
         team_b_name: normalizedRight,
         score_a: 0,
         score_b: 0,
+        court_display_flipped: false,
         ...(serveEnabled ? { serve_team: "A" } : {}),
       };
       const { error } = await supabase
