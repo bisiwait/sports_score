@@ -7,12 +7,12 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
-function isIosSafari() {
+/** iOS / iPadOS（Chrome 含む）。いずれも `beforeinstallprompt` は使えない。 */
+function isIosDevice() {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(ua);
-  const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
-  return isIOS && isSafari;
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
 }
 
 function isStandalone() {
@@ -26,7 +26,7 @@ export default function InstallPage() {
   const [installed, setInstalled] = useState(false);
   const [message, setMessage] = useState("");
 
-  const ios = useMemo(() => isIosSafari(), []);
+  const ios = useMemo(() => isIosDevice(), []);
 
   useEffect(() => {
     setInstalled(isStandalone());
@@ -54,11 +54,15 @@ export default function InstallPage() {
   const handleInstall = async () => {
     if (installed) return;
     if (ios) {
-      setMessage("iPhone/iPad は Safari の共有メニューから「ホーム画面に追加」を選択してください。");
+      setMessage(
+        "iPhone / iPad は共有メニューから「ホーム画面に追加」を選んでください（Safari・Chrome どちらでも同じ手順です）。",
+      );
       return;
     }
     if (!deferredPrompt) {
-      setMessage("この環境ではインストールプロンプトを表示できません。対応ブラウザで開いてください。");
+      setMessage(
+        "この画面からはインストールダイアログを出せません。Chrome / Edge でこのページを開き直すか、メニュー（⋮）の「アプリをインストール」「ホーム画面に追加」を試してください。LINE などアプリ内ブラウザの場合は「ブラウザで開いて」からお試しください。",
+      );
       return;
     }
     await deferredPrompt.prompt();
@@ -87,7 +91,7 @@ export default function InstallPage() {
       </button>
 
       <section className="mt-6 rounded-xl border border-foreground/15 p-4">
-        <h2 className="text-sm font-semibold">iOS (Safari) の手順</h2>
+        <h2 className="text-sm font-semibold">iPhone / iPad（Safari・Chrome 共通）の手順</h2>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-foreground/80">
           <li>下部の共有ボタン（四角と上向き矢印）を押す</li>
           <li>「ホーム画面に追加」を選ぶ</li>
@@ -98,7 +102,9 @@ export default function InstallPage() {
       {message ? <p className="mt-4 text-sm text-[#D7FF5B]">{message}</p> : null}
 
       {!ios && !installSupported && !installed ? (
-        <p className="mt-3 text-xs text-foreground/55">インストールボタンが無効な場合は、Chrome/Edge の最新版で開いてください。</p>
+        <p className="mt-3 text-xs text-foreground/55">
+          ボタンを押しても反応しない場合はページを再読み込みするか、Chrome / Edge のメニューからインストールしてください。初回は Service Worker の登録後にプロンプトが有効になることがあります。
+        </p>
       ) : null}
     </main>
   );
