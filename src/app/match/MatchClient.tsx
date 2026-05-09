@@ -688,15 +688,30 @@ export function MatchClient() {
                 {t("match.spectatorBanner")} · {t("match.spectatorSubtext")}
               </p>
             </div>
-            <div className="flex shrink-0 items-center justify-center px-1" aria-live="polite">
+            <div className="flex shrink-0 items-center justify-center px-1">
               <ServeIndicator side={serveIsPhysicalLeft ? "left" : "right"} size="toolbar" />
             </div>
             <div className="min-h-10 min-w-0 flex-1 basis-0" aria-hidden />
           </div>
         )}
 
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-row items-stretch px-2">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col border-r border-[#f2f6ff]/12">
+        {winnerTeam ? (
+          <div
+            className="shrink-0 border-b border-[#D7FF5B]/35 bg-[#D7FF5B]/12 px-3 py-3 text-center"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="block font-black text-[clamp(1.75rem,min(11vw,2.5rem),2.75rem)] leading-none tracking-[0.3em] text-[#D7FF5B]">
+              {t("match.winSticker")}
+            </span>
+            <span className="mt-1 block max-w-full truncate text-xs font-semibold text-foreground/80 sm:text-sm">
+              {(winner === "left" ? leftTeamLabel : rightTeamLabel)}
+            </span>
+          </div>
+        ) : null}
+
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-row items-stretch overflow-hidden px-2">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto border-r border-[#f2f6ff]/12">
             <div className="flex shrink-0 flex-col items-center pt-[max(0.25rem,min(3dvh,1rem))]">
               {effectiveConfig.serveEnabled && serveIsPhysicalLeft ? (
                 <span className="pointer-events-none mb-2 rounded-full border border-[#D7FF5B]/80 bg-[#D7FF5B]/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.2em] text-[#D7FF5B]">
@@ -710,10 +725,11 @@ export function MatchClient() {
               teamName={leftTeamLabel}
               score={leftScore}
               winSticker={winner === "left"}
+              spectatorWinLarge
               t={t}
             />
           </div>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
             <div className="flex shrink-0 flex-col items-center pt-[max(0.25rem,min(3dvh,1rem))]">
               {effectiveConfig.serveEnabled && !serveIsPhysicalLeft ? (
                 <span className="pointer-events-none mb-2 rounded-full border border-[#D7FF5B]/80 bg-[#D7FF5B]/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.2em] text-[#D7FF5B]">
@@ -727,6 +743,7 @@ export function MatchClient() {
               teamName={rightTeamLabel}
               score={rightScore}
               winSticker={winner === "right"}
+              spectatorWinLarge
               t={t}
             />
           </div>
@@ -1055,11 +1072,14 @@ function PlayColumnBody({
   teamName,
   score,
   winSticker,
+  spectatorWinLarge = false,
   t,
 }: {
   teamName: string;
   score: number;
   winSticker: boolean;
+  /** 観客端末で WIN を太く確実に見せる（審判画面では未使用） */
+  spectatorWinLarge?: boolean;
   t: (k: string) => string;
 }) {
   return (
@@ -1070,10 +1090,14 @@ function PlayColumnBody({
       <span className="score-font pointer-events-none block max-w-full text-center text-[clamp(2.5rem,min(26vw,min(40dvh,18rem)),5rem)] font-bold tabular-nums leading-none tracking-tight text-[#f2f6ff] sm:text-[clamp(2.85rem,min(23vw,min(42dvh,18rem)),5.5rem)]">
         {score}
       </span>
-      <div className="flex min-h-[2rem] shrink-0 flex-col items-center justify-center sm:min-h-[2.5rem]">
+      <div
+        className={`flex shrink-0 flex-col items-center justify-center ${spectatorWinLarge ? "mt-2 min-h-[2.75rem] sm:min-h-[3.25rem]" : "min-h-[2rem] sm:min-h-[2.5rem]"}`}
+      >
         {winSticker ? (
           <span
-            className="pointer-events-none font-black leading-none text-xl tracking-[0.25em] text-[#D7FF5B] sm:text-2xl"
+            className={`pointer-events-none font-black leading-none tracking-[0.25em] text-[#D7FF5B] ${
+              spectatorWinLarge ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl"
+            }`}
             aria-hidden
           >
             {t("match.winSticker")}
