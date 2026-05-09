@@ -1,7 +1,7 @@
 {
-  "name": "Doubles Taisen",
-  "short_name": "Doubles",
-  "description": "Doubles Taisen score app",
+  "name": "Sports Score",
+  "short_name": "SportsScore",
+  "description": "Real-time sports scoring application",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
