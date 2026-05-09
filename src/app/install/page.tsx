@@ -53,10 +53,7 @@ export default function InstallPage() {
   const installSupported = Boolean(deferredPrompt);
 
   const handleInstall = async () => {
-    if (installed) {
-      setMessage("すでにインストール済みです。");
-      return;
-    }
+    if (installed) return;
     if (ios) {
       setMessage("iPhone/iPad は Safari の共有メニューから「ホーム画面に追加」を選択してください。");
       return;
@@ -67,9 +64,7 @@ export default function InstallPage() {
     }
     await deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
-    if (choice.outcome === "accepted") {
-      setMessage("インストールを開始しました。");
-    } else {
+    if (choice.outcome !== "accepted") {
       setMessage("インストールはキャンセルされました。");
     }
     setDeferredPrompt(null);
@@ -89,7 +84,7 @@ export default function InstallPage() {
         className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-foreground px-4 py-3 text-base font-semibold text-background disabled:opacity-45"
         disabled={installed}
       >
-        {installed ? "インストール済み" : "アプリをインストール"}
+        インストール
       </button>
 
       <section className="mt-6 rounded-xl border border-foreground/15 p-4">
