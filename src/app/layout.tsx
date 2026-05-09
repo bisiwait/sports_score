@@ -22,6 +22,11 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "スコア管理",
   description: "シンプルなスコアとサーブ権の管理",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
