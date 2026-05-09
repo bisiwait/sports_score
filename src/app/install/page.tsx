@@ -77,10 +77,11 @@ export default function InstallPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 py-8">
-      <h1 className="text-xl font-semibold tracking-tight">Doubles Taisen</h1>
-      <p className="mt-3 text-sm text-foreground/75">
-        ポータル（BisFactory）から開いた方向けのインストールページです。インストール後はネイティブアプリのように起動できます。
-      </p>
+      <div className="flex items-center gap-3">
+        <img src="/icon-192x192.png" alt="Sports Score icon" className="h-8 w-8 rounded-md" />
+        <h1 className="text-xl font-semibold tracking-tight">Sports Score</h1>
+      </div>
+      <p className="mt-3 text-sm text-foreground/75">android版</p>
 
       <button
         type="button"
@@ -98,14 +99,6 @@ export default function InstallPage() {
           <li>「ホーム画面に追加」を選ぶ</li>
           <li>追加後、ホーム画面のアイコンから起動する</li>
         </ol>
-      </section>
-
-      <section className="mt-4 rounded-xl border border-foreground/15 p-4">
-        <h2 className="text-sm font-semibold">BisFactory へのリンク例</h2>
-        <p className="mt-2 text-xs text-foreground/70">
-          新規タブ遷移: <code>target="_blank" rel="noopener noreferrer"</code>
-        </p>
-        <p className="mt-1 break-all text-xs text-foreground/70">https://sports-score-theta.vercel.app/install</p>
       </section>
 
       {message ? <p className="mt-4 text-sm text-[#D7FF5B]">{message}</p> : null}
