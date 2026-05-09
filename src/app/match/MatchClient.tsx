@@ -10,7 +10,7 @@ import {
   type PointerEvent,
 } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowLeftRight, Copy, QrCode } from "lucide-react";
+import { ArrowLeftRight, Copy, QrCode, X } from "lucide-react";
 import { ServeIndicator } from "@/components/ServeIndicator";
 import { SettingsGearLink } from "@/components/SettingsGearLink";
 import { vibrateImpact, vibrateUi } from "@/lib/feedback/haptics";
@@ -820,7 +820,24 @@ export function MatchClient() {
 
       {showSharedQr ? (
         <section className="mx-3 mt-2 rounded-xl border border-foreground/15 bg-foreground/[0.03] p-3">
-          <p className="text-center text-xs text-foreground/60">{t("match.qrPanelCaption")}</p>
+          <div className="flex items-center gap-2">
+            <p className="min-w-0 flex-1 pe-1 text-center text-xs leading-snug text-foreground/60 sm:text-[13px]">
+              {t("match.qrPanelCaption")}
+            </p>
+            <button
+              type="button"
+              aria-label={t("match.qrClose")}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                resumeWebAudioFromUserGesture();
+                if (loadAppSettings().vibrationEnabled) vibrateUi();
+              }}
+              onClick={() => setShowSharedQr(false)}
+              className="inline-flex h-11 min-h-[44px] w-11 min-w-[44px] shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-lg border border-foreground/15 text-foreground/70 transition-colors [-webkit-tap-highlight-color:transparent] hover:border-foreground/30 hover:bg-foreground/[0.06] hover:text-foreground active:opacity-90"
+            >
+              <X className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+            </button>
+          </div>
           <div className="mt-2 flex justify-center rounded-lg bg-white p-3">
             {spectatorShareUrl ? <QRCodeSVG value={spectatorShareUrl} size={150} level="M" /> : null}
           </div>
