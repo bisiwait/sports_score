@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { AppDescriptionCarousel } from "@/components/AppDescriptionCarousel";
+import { APP_TAGLINE } from "@/lib/app-description-slides";
 import {
   chromeEngagementHintMs,
   getPwaEngagementMs,
@@ -116,12 +118,15 @@ export default function InstallPage() {
   const showChromeWaitHint = !ios && !installSupported && !installed && !engagementOk;
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 py-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 py-8">
       <div className="flex items-center gap-3">
         <img src="/icon-192x192.png" alt="Sports Score icon" className="h-8 w-8 rounded-md" />
         <h1 className="text-xl font-semibold tracking-tight">Sports Score</h1>
       </div>
-      <p className="mt-3 text-sm text-foreground/75">android版</p>
+      <p className="mt-3 text-sm leading-relaxed text-foreground/85">{APP_TAGLINE}</p>
+      <div className="mt-5 min-w-0">
+        <AppDescriptionCarousel />
+      </div>
 
       {showChromeWaitHint ? (
         <p className="mt-4 rounded-xl border border-foreground/20 bg-foreground/5 px-3 py-2 text-sm text-foreground/85">

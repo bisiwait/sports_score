@@ -11,6 +11,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { AppDescriptionCarousel } from "@/components/AppDescriptionCarousel";
 import { SettingsFeedbackSwitch } from "@/components/SettingsFeedbackSwitch";
 import { vibrateUi } from "@/lib/feedback/haptics";
 import { resumeWebAudioFromUserGesture } from "@/lib/feedback/web-audio";
@@ -214,7 +215,8 @@ function SettingsPageContent() {
   }, [navigateMatchHref, returnToMatchId, router, serveEnabled, teamLeftInput, teamRightInput]);
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-md flex-col px-4 py-5">
+    <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-5xl flex-col gap-8 px-4 py-5 lg:flex-row lg:items-stretch lg:gap-10">
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col lg:max-w-md">
       <div className="mb-8">
         <button
           type="button"
@@ -453,6 +455,11 @@ function SettingsPageContent() {
         </button>
         <p className="text-center text-[11px] tabular-nums text-foreground/35">version 1.00</p>
       </div>
+      </div>
+
+      <aside className="min-w-0 flex-1 lg:sticky lg:top-5 lg:max-h-[min(100dvh-2.5rem,900px)] lg:max-w-lg lg:overflow-y-auto lg:self-start xl:max-w-xl">
+        <AppDescriptionCarousel label="アプリの説明" />
+      </aside>
     </div>
   );
 }
