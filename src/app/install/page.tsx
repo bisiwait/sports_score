@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppDescriptionCarousel } from "@/components/AppDescriptionCarousel";
 import { APP_TAGLINE } from "@/lib/app-description-slides";
 import {
@@ -32,10 +32,24 @@ export default function InstallPage() {
   const [ios, setIos] = useState(false);
   const [message, setMessage] = useState("");
   const [engagementMs, setEngagementMs] = useState(0);
+  const [installing, setInstalling] = useState(false);
+  const installWaitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearInstallWaitTimeout = useCallback(() => {
+    if (installWaitTimeoutRef.current != null) {
+      window.clearTimeout(installWaitTimeoutRef.current);
+      installWaitTimeoutRef.current = null;
+    }
+  }, []);
 
   const refreshInstalled = useCallback(() => {
-    setInstalled(isInstalledExperience());
-  }, []);
+    const done = isInstalledExperience();
+    setInstalled(done);
+    if (done) {
+      setInstalling(false);
+      clearInstallWaitTimeout();
+    }
+  }, [clearInstallWaitTimeout]);
 
   /** アイコンから PWA 起動時は常にトップ（`/install` に来た場合も即リダイレクト）。 */
   useLayoutEffect(() => {
@@ -54,8 +68,10 @@ export default function InstallPage() {
     };
 
     const onAppInstalled = () => {
+      clearInstallWaitTimeout();
       setPersistedInstalledFlag();
       setInstalled(true);
+      setInstalling(false);
       setDeferredPrompt(null);
     };
 
@@ -73,12 +89,13 @@ export default function InstallPage() {
     const engagementId = window.setInterval(tick, 500);
 
     return () => {
+      clearInstallWaitTimeout();
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onAppInstalled);
       mqs.forEach((mq) => mq.removeEventListener("change", onDisplayMode));
       window.clearInterval(engagementId);
     };
-  }, [refreshInstalled]);
+  }, [refreshInstalled, clearInstallWaitTimeout]);
 
   const installSupported = Boolean(deferredPrompt);
   const engagementHint = chromeEngagementHintMs();
@@ -86,7 +103,7 @@ export default function InstallPage() {
   const remainingEngagementSec = Math.max(0, Math.ceil((engagementHint - engagementMs) / 1000));
 
   const handleInstall = async () => {
-    if (installed) return;
+    if (installed || installing) return;
     if (ios) {
       setMessage(
         "iPhone / iPad は共有メニューから「ホーム画面に追加」を選んでください（Safari・Chrome どちらでも同じ手順です）。",
@@ -105,15 +122,48 @@ export default function InstallPage() {
       );
       return;
     }
-    await deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-    if (choice.outcome !== "accepted") {
-      setMessage("インストールはキャンセルされました。");
+
+    const promptEvent = deferredPrompt;
+    setInstalling(true);
+    setMessage("");
+
+    try {
+      await promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
+      setDeferredPrompt(null);
+
+      if (choice.outcome !== "accepted") {
+        clearInstallWaitTimeout();
+        setInstalling(false);
+        setMessage("インストールはキャンセルされました。");
+        return;
+      }
+
+      /* 承認後は `appinstalled` まで「インストール中」。遅い端末向けにフォールバック。 */
+      clearInstallWaitTimeout();
+      installWaitTimeoutRef.current = window.setTimeout(() => {
+        installWaitTimeoutRef.current = null;
+        if (isInstalledExperience()) {
+          setInstalled(true);
+          setInstalling(false);
+          return;
+        }
+        setInstalling(false);
+        setMessage((prev) =>
+          prev ||
+          "インストールの完了通知が遅れています。ブラウザのメニューでインストール状態をご確認ください。",
+        );
+      }, 25000);
+    } catch {
+      clearInstallWaitTimeout();
+      setInstalling(false);
+      setMessage("インストールを開始できませんでした。ページを再読み込みしてからお試しください。");
     }
-    setDeferredPrompt(null);
   };
 
-  const showChromeWaitHint = !ios && !installSupported && !installed && !engagementOk;
+  const showChromeWaitHint = !ios && !installSupported && !installed && !engagementOk && !installing;
+
+  const buttonLabel = installed ? "インストール済み" : installing ? "インストール中…" : "インストール";
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 py-8">
@@ -143,9 +193,10 @@ export default function InstallPage() {
         type="button"
         onClick={() => void handleInstall()}
         className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-foreground px-4 py-3 text-base font-semibold text-background disabled:opacity-45"
-        disabled={installed}
+        disabled={installed || installing}
+        aria-busy={installing}
       >
-        {installed ? "インストール済み" : "インストール"}
+        {buttonLabel}
       </button>
 
       <section className="mt-6 rounded-xl border border-foreground/15 p-4">
