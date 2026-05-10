@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AppDescriptionCarousel } from "@/components/AppDescriptionCarousel";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { interpolate } from "@/lib/interpolate";
 import {
@@ -161,10 +160,6 @@ export default function InstallPage() {
       <div className="flex items-center gap-3">
         <img src="/icon-192x192.png" alt={t("install.iconAlt")} className="h-8 w-8 rounded-md" />
         <h1 className="text-xl font-semibold tracking-tight">{t("install.appTitle")}</h1>
-      </div>
-      <p className="mt-3 text-sm leading-relaxed text-foreground/85">{t("install.tagline")}</p>
-      <div className="mt-5 min-w-0">
-        <AppDescriptionCarousel />
       </div>
 
       {showChromeWaitHint ? (
