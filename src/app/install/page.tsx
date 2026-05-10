@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppDescriptionCarousel } from "@/components/AppDescriptionCarousel";
-import { APP_TAGLINE } from "@/lib/app-description-slides";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import { interpolate } from "@/lib/interpolate";
 import {
   chromeEngagementHintMs,
   getPwaEngagementMs,
@@ -27,6 +28,7 @@ function isIosDevice() {
 
 export default function InstallPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [ios, setIos] = useState(false);
@@ -83,7 +85,6 @@ export default function InstallPage() {
     const onDisplayMode = () => refreshInstalled();
     mqs.forEach((mq) => mq.addEventListener("change", onDisplayMode));
 
-    const engagementHint = chromeEngagementHintMs();
     const tick = () => setEngagementMs(getPwaEngagementMs());
     tick();
     const engagementId = window.setInterval(tick, 500);
@@ -105,21 +106,15 @@ export default function InstallPage() {
   const handleInstall = async () => {
     if (installed || installing) return;
     if (ios) {
-      setMessage(
-        "iPhone / iPad は共有メニューから「ホーム画面に追加」を選んでください（Safari・Chrome どちらでも同じ手順です）。",
-      );
+      setMessage(t("install.msg.iosAddToHome"));
       return;
     }
     if (!deferredPrompt) {
       if (!engagementOk) {
-        setMessage(
-          `Chrome の仕様で、しばらくこのサイトを表示してからでないとインストール用のダイアログが出ないことがあります（目安: あと約 ${remainingEngagementSec} 秒。この画面のままお待ちください）。`,
-        );
+        setMessage(interpolate(t("install.msg.engagementWait"), { sec: remainingEngagementSec }));
         return;
       }
-      setMessage(
-        "この画面からはインストールダイアログを出せません。Chrome / Edge のメニュー（⋮）から「アプリをインストール」または「ホーム画面に追加」を選んでください。LINE などのアプリ内ブラウザの場合は「ブラウザで開く」してからお試しください。",
-      );
+      setMessage(t("install.msg.noPrompt"));
       return;
     }
 
@@ -135,11 +130,10 @@ export default function InstallPage() {
       if (choice.outcome !== "accepted") {
         clearInstallWaitTimeout();
         setInstalling(false);
-        setMessage("インストールはキャンセルされました。");
+        setMessage(t("install.msg.cancelled"));
         return;
       }
 
-      /* 承認後は `appinstalled` まで「インストール中」。遅い端末向けにフォールバック。 */
       clearInstallWaitTimeout();
       installWaitTimeoutRef.current = window.setTimeout(() => {
         installWaitTimeoutRef.current = null;
@@ -149,43 +143,35 @@ export default function InstallPage() {
           return;
         }
         setInstalling(false);
-        setMessage((prev) =>
-          prev ||
-          "インストールの完了通知が遅れています。ブラウザのメニューでインストール状態をご確認ください。",
-        );
+        setMessage((prev) => prev || t("install.msg.installSlow"));
       }, 25000);
     } catch {
       clearInstallWaitTimeout();
       setInstalling(false);
-      setMessage("インストールを開始できませんでした。ページを再読み込みしてからお試しください。");
+      setMessage(t("install.msg.promptFailed"));
     }
   };
 
   const showChromeWaitHint = !ios && !installSupported && !installed && !engagementOk && !installing;
 
-  const buttonLabel = installed ? "インストール済み" : installing ? "インストール中…" : "インストール";
+  const buttonLabel = installed ? t("install.button.installed") : installing ? t("install.button.installing") : t("install.button.install");
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 py-8">
       <div className="flex items-center gap-3">
-        <img src="/icon-192x192.png" alt="Sports Score icon" className="h-8 w-8 rounded-md" />
-        <h1 className="text-xl font-semibold tracking-tight">Sports Score</h1>
+        <img src="/icon-192x192.png" alt={t("install.iconAlt")} className="h-8 w-8 rounded-md" />
+        <h1 className="text-xl font-semibold tracking-tight">{t("install.appTitle")}</h1>
       </div>
-      <p className="mt-3 text-sm leading-relaxed text-foreground/85">{APP_TAGLINE}</p>
+      <p className="mt-3 text-sm leading-relaxed text-foreground/85">{t("install.tagline")}</p>
       <div className="mt-5 min-w-0">
         <AppDescriptionCarousel />
       </div>
 
       {showChromeWaitHint ? (
         <p className="mt-4 rounded-xl border border-foreground/20 bg-foreground/5 px-3 py-2 text-sm text-foreground/85">
-          Chrome では、このサイトを<strong>合計約30秒</strong>表示したあとにインストール用の準備が整うことがあります（他のページを見ていてもカウントされます）。あと約{" "}
-          <span className="font-mono tabular-nums">{remainingEngagementSec}</span> 秒…
-        </p>
-      ) : null}
-
-      {installed && !isStandaloneDisplay() ? (
-        <p className="mt-3 text-xs text-foreground/60">
-          ブラウザでは通常表示のままです。ホーム画面のアイコンから開くとアプリ表示で始まります。
+          {t("install.chromeWait.beforeStrong")}
+          <strong>{t("install.chromeWait.strong")}</strong>
+          {interpolate(t("install.chromeWait.afterStrong"), { sec: remainingEngagementSec })}
         </p>
       ) : null}
 
@@ -200,20 +186,18 @@ export default function InstallPage() {
       </button>
 
       <section className="mt-6 rounded-xl border border-foreground/15 p-4">
-        <h2 className="text-sm font-semibold">iPhone / iPad（Safari・Chrome 共通）の手順</h2>
+        <h2 className="text-sm font-semibold">{t("install.ios.title")}</h2>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-foreground/80">
-          <li>下部の共有ボタン（四角と上向き矢印）を押す</li>
-          <li>「ホーム画面に追加」を選ぶ</li>
-          <li>追加後、ホーム画面のアイコンから起動する</li>
+          <li>{t("install.ios.step1")}</li>
+          <li>{t("install.ios.step2")}</li>
+          <li>{t("install.ios.step3")}</li>
         </ol>
       </section>
 
       {message ? <p className="mt-4 text-sm text-[#D7FF5B]">{message}</p> : null}
 
       {!ios && !installSupported && !installed && engagementOk ? (
-        <p className="mt-3 text-xs text-foreground/55">
-          準備が整っているのにボタンで出ない場合は、ページを再読み込みするか Chrome / Edge のメニューからインストールしてください。
-        </p>
+        <p className="mt-3 text-xs text-foreground/55">{t("install.menuFallback")}</p>
       ) : null}
     </main>
   );

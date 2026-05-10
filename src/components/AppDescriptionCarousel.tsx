@@ -1,8 +1,10 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { APP_DESCRIPTION_SLIDES } from "@/lib/app-description-slides";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { APP_DESCRIPTION_I18N_SLIDES } from "@/lib/app-description-i18n";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import { interpolate } from "@/lib/interpolate";
 
 const AUTO_MS = 8_000;
 
@@ -13,16 +15,34 @@ type AppDescriptionCarouselProps = {
 };
 
 export function AppDescriptionCarousel({ className = "", label }: AppDescriptionCarouselProps) {
+  const { t, lang } = useI18n();
+  const slides = useMemo(
+    () =>
+      APP_DESCRIPTION_I18N_SLIDES.map((s) => ({
+        id: s.id,
+        heading: t(s.headingKey),
+        body: t(s.bodyKey),
+      })),
+    [t, lang],
+  );
+  const n = slides.length;
+
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [viewportPx, setViewportPx] = useState(0);
   const viewportRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
-  const n = APP_DESCRIPTION_SLIDES.length;
 
-  const go = useCallback((delta: number) => {
-    setIndex((i) => (i + delta + n) % n);
-  }, [n]);
+  useEffect(() => {
+    setIndex(0);
+  }, [lang]);
+
+  const go = useCallback(
+    (delta: number) => {
+      setIndex((i) => (i + delta + n) % n);
+    },
+    [n],
+  );
 
   useLayoutEffect(() => {
     const el = viewportRef.current;
@@ -57,12 +77,13 @@ export function AppDescriptionCarousel({ className = "", label }: AppDescription
   };
 
   const offsetPx = viewportPx > 0 ? index * viewportPx : 0;
+  const carouselAria = label ?? t("install.carousel.aria");
 
   return (
     <section
       className={`flex flex-col ${className}`}
       aria-roledescription="carousel"
-      aria-label={label ?? "アプリの説明"}
+      aria-label={carouselAria}
       onPointerEnter={() => setPaused(true)}
       onPointerLeave={() => setPaused(false)}
     >
@@ -83,7 +104,7 @@ export function AppDescriptionCarousel({ className = "", label }: AppDescription
             transform: viewportPx > 0 ? `translate3d(-${offsetPx}px, 0, 0)` : undefined,
           }}
         >
-          {APP_DESCRIPTION_SLIDES.map((s) => (
+          {slides.map((s) => (
             <article
               key={s.id}
               className="shrink-0 px-4 py-4 sm:px-5 sm:py-5"
@@ -100,12 +121,12 @@ export function AppDescriptionCarousel({ className = "", label }: AppDescription
             type="button"
             onClick={() => go(-1)}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-transparent text-foreground/80 hover:bg-foreground/10"
-            aria-label="前のスライド"
+            aria-label={t("install.carousel.prev")}
           >
             <ChevronLeft className="h-5 w-5" aria-hidden />
           </button>
           <div className="flex flex-1 flex-wrap items-center justify-center gap-1.5 px-1">
-            {APP_DESCRIPTION_SLIDES.map((s, i) => (
+            {slides.map((s, i) => (
               <button
                 key={s.id}
                 type="button"
@@ -113,7 +134,10 @@ export function AppDescriptionCarousel({ className = "", label }: AppDescription
                 className={`h-2 rounded-full transition-all ${
                   i === index ? "w-6 bg-[#D7FF5B]" : "w-2 bg-foreground/25 hover:bg-foreground/40"
                 }`}
-                aria-label={`スライド ${i + 1} / ${n}`}
+                aria-label={interpolate(t("install.carousel.dotLabel"), {
+                  current: i + 1,
+                  total: n,
+                })}
                 aria-current={i === index ? "true" : undefined}
               />
             ))}
@@ -122,7 +146,7 @@ export function AppDescriptionCarousel({ className = "", label }: AppDescription
             type="button"
             onClick={() => go(1)}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-transparent text-foreground/80 hover:bg-foreground/10"
-            aria-label="次のスライド"
+            aria-label={t("install.carousel.next")}
           >
             <ChevronRight className="h-5 w-5" aria-hidden />
           </button>
@@ -130,8 +154,8 @@ export function AppDescriptionCarousel({ className = "", label }: AppDescription
       </div>
 
       <p className="mt-2 text-center text-[11px] text-foreground/45" aria-live="polite">
-        {index + 1} / {n}
-        {paused ? " · 一時停止中" : ""}
+        {interpolate(t("install.carousel.counter"), { current: index + 1, total: n })}
+        {paused ? t("install.carousel.paused") : ""}
       </p>
     </section>
   );

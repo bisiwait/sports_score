@@ -458,7 +458,7 @@ function SettingsPageContent() {
       </div>
 
       <aside className="min-w-0 flex-1 lg:sticky lg:top-5 lg:max-h-[min(100dvh-2.5rem,900px)] lg:max-w-lg lg:overflow-y-auto lg:self-start xl:max-w-xl">
-        <AppDescriptionCarousel label="アプリの説明" />
+        <AppDescriptionCarousel label={t("install.descriptionSection")} />
       </aside>
     </div>
   );
