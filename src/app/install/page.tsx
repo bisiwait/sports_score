@@ -37,14 +37,12 @@ export default function InstallPage() {
     setInstalled(isInstalledExperience());
   }, []);
 
-  /** PWA（ホーム画面から）で開いたときはインストール画面ではなくトップへ。 */
+  /** アイコンから PWA 起動時は常にトップ（`/install` に来た場合も即リダイレクト）。 */
   useLayoutEffect(() => {
     if (isStandaloneDisplay()) {
       router.replace("/");
     }
   }, [router]);
-
-  const openAppInBrowser = installed && !isStandaloneDisplay();
 
   useEffect(() => {
     setIos(isIosDevice());
@@ -135,30 +133,20 @@ export default function InstallPage() {
         </p>
       ) : null}
 
-      {openAppInBrowser ? (
-        <p className="mt-3 text-sm text-foreground/75">
-          インストール済みです。ブラウザからは通常表示のままです。アプリの画面を使うには下のボタンでトップへ進むか、ホーム画面のアイコンから開いてください。
+      {installed && !isStandaloneDisplay() ? (
+        <p className="mt-3 text-xs text-foreground/60">
+          ブラウザでは通常表示のままです。ホーム画面のアイコンから開くとアプリ表示で始まります。
         </p>
       ) : null}
 
-      {openAppInBrowser ? (
-        <button
-          type="button"
-          onClick={() => router.push("/")}
-          className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-foreground px-4 py-3 text-base font-semibold text-background"
-        >
-          アプリを開く
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => void handleInstall()}
-          className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-foreground px-4 py-3 text-base font-semibold text-background disabled:opacity-45"
-          disabled={installed}
-        >
-          {installed ? "インストール済み" : "インストール"}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => void handleInstall()}
+        className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-foreground px-4 py-3 text-base font-semibold text-background disabled:opacity-45"
+        disabled={installed}
+      >
+        {installed ? "インストール済み" : "インストール"}
+      </button>
 
       <section className="mt-6 rounded-xl border border-foreground/15 p-4">
         <h2 className="text-sm font-semibold">iPhone / iPad（Safari・Chrome 共通）の手順</h2>
